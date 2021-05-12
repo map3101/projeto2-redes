@@ -33,18 +33,17 @@ struct pkt {
    int acknum;
    int checksum;
    char payload[20];
-    };
+};
 
+struct pkt buffer_A[50];
+
+const int N = 8;
+
+//
+int send_base;
 
 // Manter tracking do seqnumA, seqnumB
-int seq_A = 0, seq_B = 0;
-
-struct pkt last_packet_A, last_packet_B;
-
-enum state {
-  CALL,
-  ACK,
-} state_A;
+int seq_A, seq_B;
 
 /******  ROTINAS DE APOIO ******/
 // Gera o checksum de uma mensagem com 20 bits, foi utilizada a implementação contida no RFC 1071
@@ -82,34 +81,23 @@ int corrupt(struct pkt pacote) {
 /* called from layer 5, passed the data to be sent to other side */
 A_output(message)
   struct msg message;
-{
-  // Caso A estiver aguardando por um ACK ele não receberá novos pacotes
-  if(state_A == ACK){
-    return;
+{ 
+  if(seq_A >= 50) return;
+  if(seq_A < send_base + N) {
+    struct pkt pacote;
+    pacote.seqnum = seq_A;
+    pacote.checksum = compute_checksum(message);
+    for (int i=0; i<20; i++)
+      pacote.payload[i] = message.data[i];
+    
+    buffer_A[seq_A] = pacote;
+
+    tolayer3(0, pacote);
+
+    if(send_base == seq_A) starttimer(0, 15.0);
+    seq_A ++;
   }
-  
-  // Atribui o valor ao seqnum com base na referência
-  if(seq_A == 0) {
-    last_packet_A.seqnum = 0;
-    seq_A = 1;
-  }
-  else {
-    last_packet_A.seqnum = 1;
-    seq_A = 0;  
-  }
 
-  // Definir o checksum
-  last_packet_A.checksum = compute_checksum(message);
-
-  //Atribuir os dados ao last_packet_A
-  for (int i=0; i<20; i++)
-    last_packet_A.payload[i] = message.data[i];
-
-  tolayer3(0, last_packet_A);
-  
-  state_A = ACK;
-
-  starttimer(0, 15.0);
 }
 
 B_output(message)  /* need be completed only for extra credit */
@@ -122,35 +110,32 @@ B_output(message)  /* need be completed only for extra credit */
 A_input(packet)
   struct pkt packet;
 {
-  if(corrupt(packet) || packet.seqnum != seq_A){
+  if(corrupt(packet)){
     return;
   }
+  
+  send_base = packet.acknum + 1;
 
-  state_A = CALL;
-
-  stoptimer(0);
+  if(send_base == seq_A) stoptimer(0);
+  else starttimer(0, 15.0);
 
 }
 
 /* called when A's timer goes off */
 A_timerinterrupt()
 {
-  if(state_A == CALL) {
-    return;
-  }
-
-  tolayer3(0, last_packet_A);
-
   starttimer(0, 15.0);
-
+  for(int i = send_base; i < seq_A; i++) {
+    tolayer3(0, buffer_A[i]);
+  }
 }  
 
 /* the following routine will be called once (only) before any other */
 /* entity A routines are called. You can use it to do any initialization */
 A_init()
 {
-  state_A = CALL;
-  last_packet_A.seqnum = 0;
+  send_base = 1;
+  seq_A = 1;
 }
 
 
@@ -164,13 +149,16 @@ B_input(packet)
     return;
   }
 
-  seq_B = packet.seqnum == 0;
-  last_packet_B.seqnum = seq_B;
+  struct pkt pacote;
+  pacote.acknum = seq_B;
+  pacote.checksum = compute_checksum(pacote.payload);
 
   tolayer5(1, packet.payload);
 
 
-  tolayer3(1, last_packet_B);
+  tolayer3(1, pacote);
+  seq_B ++;
+
 }
 
 /* called when B's timer goes off */
@@ -183,7 +171,7 @@ B_timerinterrupt()
 /* entity B routines are called. You can use it to do any initialization */
 B_init()
 {
-  last_packet_B.checksum = compute_checksum(last_packet_B.payload);
+  seq_B = 1;
 }
 
 
@@ -345,7 +333,7 @@ init()                         /* initialize the simulator */
     printf("It is likely that random number generation on your machine\n" ); 
     printf("is different from what this emulator expects.  Please take\n");
     printf("a look at the routine jimsrand() in the emulator code. Sorry. \n");
-    exit();
+    exit(1);
     }
 
    ntolayer3 = 0;
