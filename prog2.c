@@ -1,4 +1,5 @@
 #include <stdio.h>
+//#include <stdlib.h>
 
 /* ******************************************************************
  ALTERNATING BIT AND GO-BACK-N NETWORK EMULATOR: VERSION 1.1  J.F.Kurose
@@ -31,7 +32,7 @@ struct pkt {
    int seqnum;
    int acknum;
    int checksum;
-   char *payload;
+   char payload[20];
     };
 
 
@@ -108,7 +109,7 @@ A_output(message)
   
   state_A = ACK;
 
-  starttimer(0, 1000);
+  starttimer(0, 15.0);
 }
 
 B_output(message)  /* need be completed only for extra credit */
@@ -140,7 +141,7 @@ A_timerinterrupt()
 
   tolayer3(0, last_packet_A);
 
-  starttimer(0, 1000);
+  starttimer(0, 15.0);
 
 }  
 
@@ -149,8 +150,7 @@ A_timerinterrupt()
 A_init()
 {
   state_A = CALL;
-  last_packet_A.seqnum = seq_A;
-  last_packet_A.payload = malloc(20*sizeof(char));
+  last_packet_A.seqnum = 0;
 }
 
 
@@ -183,7 +183,6 @@ B_timerinterrupt()
 /* entity B routines are called. You can use it to do any initialization */
 B_init()
 {
-  last_packet_B.payload = malloc(20*sizeof(char));
   last_packet_B.checksum = compute_checksum(last_packet_B.payload);
 }
 
@@ -346,7 +345,7 @@ init()                         /* initialize the simulator */
     printf("It is likely that random number generation on your machine\n" ); 
     printf("is different from what this emulator expects.  Please take\n");
     printf("a look at the routine jimsrand() in the emulator code. Sorry. \n");
-    exit(1);
+    exit();
     }
 
    ntolayer3 = 0;
@@ -538,11 +537,8 @@ struct pkt packet;
  mypktptr->seqnum = packet.seqnum;
  mypktptr->acknum = packet.acknum;
  mypktptr->checksum = packet.checksum;
- mypktptr->payload = malloc(20*sizeof(char));
- for (i=0; i<20; i++){
-    char temp = packet.payload[i];
-    mypktptr->payload[i] = temp;
- }
+ for (i=0; i<20; i++)
+    mypktptr->payload[i] = packet.payload[i];
  if (TRACE>2)  {
    printf("          TOLAYER3: seq: %d, ack %d, check: %d ", mypktptr->seqnum,
 	  mypktptr->acknum,  mypktptr->checksum);
@@ -600,4 +596,3 @@ tolayer5(AorB,datasent)
    }
   
 }
-
