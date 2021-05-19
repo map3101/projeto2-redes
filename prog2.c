@@ -52,7 +52,7 @@ unsigned short compute_checksum(data) unsigned char *data;
 {
   register long sum = 0;
 
-  for(int i = 0; i < 20; i += 2) {
+  for (int i = 0; i < 20; i += 2) {
     sum += data[i] | data[i + 1] << 8;
   }
 
@@ -65,9 +65,9 @@ unsigned short compute_checksum(data) unsigned char *data;
 
 unsigned short corrupt(struct pkt pacote) {
   register long sum = 0;
-  unsigned char * data = pacote.payload;
+  unsigned char *data = pacote.payload;
 
-  for(int i = 0; i < 20; i += 2) {
+  for (int i = 0; i < 20; i += 2) {
     sum += data[i] | data[i + 1] << 8;
   }
 
@@ -106,11 +106,9 @@ A_output(message) struct msg message;
 
   tolayer3(0, last_packet_A);
 
-  state_A = ACK;
-
   starttimer(0, 15.0);
-  printf("Sent package with payload: %s and checksum: %d\n",
-         last_packet_A.payload, last_packet_A.checksum);
+
+  state_A = ACK;
 }
 
 B_output(message) /* need be completed only for extra credit */
@@ -160,7 +158,7 @@ B_input(packet) struct pkt packet;
     return;
   }
 
-  if(packet.seqnum != seq_B) {
+  if (packet.seqnum != seq_B) {
     printf("received package out of order\n");
     return;
   }
