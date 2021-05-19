@@ -48,9 +48,13 @@ enum state {
 /******  ROTINAS DE APOIO ******/
 // Gera o checksum de uma mensagem com 20 bits, foi utilizada a implementação
 // contida no RFC 1071
-unsigned short compute_checksum(data) unsigned char *data;
+unsigned short compute_checksum(packet) struct pkt packet;
 {
   register long sum = 0;
+  unsigned char * data = packet.payload;
+
+  sum += packet.acknum;
+  sum += packet.seqnum;
 
   for (int i = 0; i < 20; i += 2) {
     sum += data[i] | data[i + 1] << 8;
@@ -66,6 +70,9 @@ unsigned short compute_checksum(data) unsigned char *data;
 unsigned short corrupt(struct pkt pacote) {
   register long sum = 0;
   unsigned char *data = pacote.payload;
+
+  sum += pacote.acknum;
+  sum += pacote.seqnum;
 
   for (int i = 0; i < 20; i += 2) {
     sum += data[i] | data[i + 1] << 8;
