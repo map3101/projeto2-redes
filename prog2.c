@@ -85,6 +85,7 @@ A_output(message) struct msg message;
 {
   // Caso A estiver aguardando por um ACK ele não receberá novos pacotes
   if (state_A == ACK) {
+    printf("Não é possível enviar. A está esperando um ACK.\n");
     return;
   }
 
@@ -104,6 +105,7 @@ A_output(message) struct msg message;
   // Definir o checksum
   last_packet_A.checksum = compute_checksum(message.data);
 
+  printf("Enviando pacote para B...\n");
   tolayer3(0, last_packet_A);
 
   starttimer(0, 15.0);
@@ -122,6 +124,7 @@ A_input(packet) struct pkt packet;
     return;
   }
 
+  printf("Pacote entregue com sucesso!\n");
   state_A = CALL;
 
   stoptimer(0);
@@ -135,7 +138,7 @@ A_timerinterrupt() {
 
   tolayer3(0, last_packet_A);
 
-  printf("timeout, resending...\n");
+  printf("Timeout, reenviando pacote...\n");
 
   starttimer(0, 15.0);
 }
@@ -152,22 +155,20 @@ A_init() {
 /* called from layer 3, when a packet arrives for layer 4 at B*/
 B_input(packet) struct pkt packet;
 {
-  printf("Received package with payload: %s\n", packet.payload);
+  printf("Pacote recebido...\n");
   if (corrupt(packet)) {
-    printf("package is currupt.\n");
+    printf("Pacote corrompido!\n");
     return;
   }
 
-  if (packet.seqnum != seq_B) {
-    printf("received package out of order\n");
-    return;
-  }
-
-  seq_B = packet.seqnum == 0;
+  if (packet.seqnum == seq_B) {
+    seq_B = packet.seqnum == 0;
+  } 
   last_packet_B.seqnum = seq_B;
 
   tolayer5(1, packet.payload);
 
+  printf("Enviando ACK para A...\n");
   tolayer3(1, last_packet_B);
 }
 
