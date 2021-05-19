@@ -106,10 +106,10 @@ A_output(message)
     last_packet_A.payload[i] = message.data[i];
 
   tolayer3(0, last_packet_A);
-  
-  state_A = ACK;
 
   starttimer(0, 15.0);
+	
+  state_A = ACK;
 }
 
 B_output(message)  /* need be completed only for extra credit */
