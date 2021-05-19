@@ -136,9 +136,8 @@ A_timerinterrupt() {
     return;
   }
 
-  tolayer3(0, last_packet_A);
-
   printf("Timeout, reenviando pacote...\n");
+  tolayer3(0, last_packet_A);
 
   starttimer(0, 15.0);
 }
