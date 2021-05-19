@@ -48,9 +48,13 @@ int seq_A, seq_B;
 /******  ROTINAS DE APOIO ******/
 // Gera o checksum de uma mensagem com 20 bits, foi utilizada a implementação
 // contida no RFC 1071
-unsigned short compute_checksum(data) unsigned char *data;
+unsigned short compute_checksum(packet) struct pkt packet;
 {
   register long sum = 0;
+  unsigned char * data = packet.payload;
+
+  sum += packet.acknum;
+  sum += packet.seqnum;
 
   for (int i = 0; i < 20; i += 2) {
     sum += data[i] | data[i + 1] << 8;
@@ -66,6 +70,9 @@ unsigned short compute_checksum(data) unsigned char *data;
 unsigned short corrupt(struct pkt pacote) {
   register long sum = 0;
   unsigned char *data = pacote.payload;
+
+  sum += pacote.acknum;
+  sum += pacote.seqnum;
 
   for (int i = 0; i < 20; i += 2) {
     sum += data[i] | data[i + 1] << 8;
@@ -91,9 +98,11 @@ A_output(message) struct msg message;
   if (seq_A < send_base + N) {
     struct pkt pacote;
     pacote.seqnum = seq_A;
-    pacote.checksum = compute_checksum(message.data);
+    
     for (int i = 0; i < 20; i++)
       pacote.payload[i] = message.data[i];
+
+    pacote.checksum = compute_checksum(pacote);
 
     buffer_A[seq_A] = pacote;
 
@@ -102,6 +111,7 @@ A_output(message) struct msg message;
 
     if (send_base == seq_A)
       starttimer(0, 15.0);
+
     seq_A++;
   } else {
     printf("Não é possível enviar. Não há espaço na janela.\n");
@@ -158,7 +168,6 @@ B_input(packet) struct pkt packet;
 
   struct pkt pacote;
   pacote.acknum = seq_B;
-  pacote.checksum = compute_checksum(pacote.payload);
 
   if (packet.seqnum == seq_B) {
     tolayer5(1, packet.payload);
@@ -169,7 +178,8 @@ B_input(packet) struct pkt packet;
     pacote.acknum = seq_B - 1;
     printf("Pacote fora de ordem. Reenviando ACK n %d\n.", pacote.acknum);
   }
-
+  
+  pacote.checksum = compute_checksum(pacote);
   tolayer3(1, pacote);
 }
 
