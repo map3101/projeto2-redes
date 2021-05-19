@@ -110,7 +110,7 @@ A_output(message) struct msg message;
     last_packet_A.payload[i] = message.data[i];
 
   // Definir o checksum
-  last_packet_A.checksum = compute_checksum(message.data);
+  last_packet_A.checksum = compute_checksum(last_packet_A);
 
   printf("Enviando pacote para B...\n");
   tolayer3(0, last_packet_A);
@@ -162,6 +162,7 @@ A_init() {
 B_input(packet) struct pkt packet;
 {
   printf("Pacote recebido...\n");
+
   if (corrupt(packet)) {
     printf("Pacote corrompido!\n");
     return;
@@ -169,11 +170,14 @@ B_input(packet) struct pkt packet;
 
   if (packet.seqnum == seq_B) {
     seq_B = packet.seqnum == 0;
-  } 
+  }
+
   last_packet_B.seqnum = seq_B;
 
   tolayer5(1, packet.payload);
 
+  last_packet_B.checksum = compute_checksum(last_packet_B);
+  
   printf("Enviando ACK para A...\n");
   tolayer3(1, last_packet_B);
 }
@@ -183,7 +187,9 @@ B_timerinterrupt() {}
 
 /* the following rouytine will be called once (only) before any other */
 /* entity B routines are called. You can use it to do any initialization */
-B_init() { last_packet_B.checksum = compute_checksum(last_packet_B.payload); }
+B_init() {
+
+ }
 
 /*****************************************************************
 ***************** NETWORK EMULATION CODE STARTS BELOW ***********
