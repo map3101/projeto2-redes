@@ -90,28 +90,38 @@ unsigned short corrupt(struct pkt pacote) {
 /* called from layer 5, passed the data to be sent to other side */
 A_output(message) struct msg message;
 {
+  // Limitamos o buffer a 50 mensagens. Caso esse limite seja ultrapassado
+  // paramos de enviar mensagens
   if (seq_A >= 50) {
     printf("Não é possível enviar. Buffer está cheio.\n");
     return;
   }
 
+  // Somente enviamos se houver espaço na janela de envio
   if (seq_A < send_base + N) {
     struct pkt pacote;
+    // atribui ao número de sequência a ser enviado o número atual de A
     pacote.seqnum = seq_A;
     
+    // copia a mensagem para o payload
     for (int i = 0; i < 20; i++)
       pacote.payload[i] = message.data[i];
 
+    // faz o cálculo do checksum do pacote a ser enviado
     pacote.checksum = compute_checksum(pacote);
 
+    // coloca o pacote no buffer, para caso de reenvio
     buffer_A[seq_A] = pacote;
 
     printf("Enviando pacote para B...\n");
+    // realiza o envio do pacote para B
     tolayer3(0, pacote);
 
+    // se a janela está vazio, iniciamos o timer
     if (send_base == seq_A)
       starttimer(0, 15.0);
 
+    // incrementa o valor do próximo número de sequência
     seq_A++;
   } else {
     printf("Não é possível enviar. Não há espaço na janela.\n");
@@ -125,35 +135,50 @@ B_output(message) /* need be completed only for extra credit */
 /* called from layer 3, when a packet arrives for layer 4 */
 A_input(packet) struct pkt packet;
 {
+  // se o pacote estiver corrompido, para prematuramente para causar um
+  // timeout, onde ocorrerá um reenvio
   if (corrupt(packet)) {
     return;
   }
 
-  if(send_base != packet.acknum + 1) {
+  // se a base da janela será incrementada, houve uma entrega com sucesso
+  if(send_base < packet.acknum + 1) {
     printf("Pacote entregue com sucesso!\n");
   }
 
+  // incrementa a base da janela com o ACK recebido
   send_base = packet.acknum + 1;
 
+  // Se a base representa o próximo número de sequência esperado, paramos o 
+  // timer
   if (send_base == seq_A)
     stoptimer(0);
+  // Caso o contrário, iniciamos novamente o timer
   else
     starttimer(0, 15.0);
 }
 
 /* called when A's timer goes off */
 A_timerinterrupt() {
-  printf("Timeout. Reenviado %d pacotes a partir de %d.\n", seq_A - send_base, send_base);
+  printf("Timeout. Reenviado %d pacotes a partir de %d.\n", 
+    seq_A - send_base, send_base);
+
+  // reenvia os pacotes a partir do inicio da janela até o último pacote 
+  // enviado esperando confirmação
   for (int i = send_base; i < seq_A; i++) {
     tolayer3(0, buffer_A[i]);
   }
+
+  // reinicia o timer
   starttimer(0, 15.0);
 }
 
 /* the following routine will be called once (only) before any other */
 /* entity A routines are called. You can use it to do any initialization */
 A_init() {
+  // inicia com a janela vazia
   send_base = 1;
+  // número de sequência inicial
   seq_A = 1;
 }
 
@@ -162,24 +187,36 @@ A_init() {
 /* called from layer 3, when a packet arrives for layer 4 at B*/
 B_input(packet) struct pkt packet;
 {
+  // se estiver corrompido, finaliza prematuramente para causar um timeout no
+  // lado A e causar um reenvio, possivelmente não corrompido
   if (corrupt(packet)) {
     return;
   }
 
+  // cria um pacote de ACK a ser enviado
   struct pkt pacote;
+
+  // atribui o número de ACK a ser enviado ao número de sequência de B
   pacote.acknum = seq_B;
 
+  // se o pacote recebido tem o número de sequência esperado
   if (packet.seqnum == seq_B) {
+    // realiza a entrega da mensagem para as camadas superiores
     tolayer5(1, packet.payload);
+    // incrementa o número de sequência esperado por B
     seq_B++;
 
     printf("Pacote com seq %d recebido com sucesso. Enviando ACK.\n.", packet.seqnum);
-  } else {
+  } else { // caso houve uma perda, e o número de sequência está incorreto
+    // atribui o número de ACK a ser enviado ao último número de sequência
+    // corretamente recebido, que é o próximo número esperado menos 1
     pacote.acknum = seq_B - 1;
     printf("Pacote fora de ordem. Reenviando ACK n %d\n.", pacote.acknum);
   }
   
+  // realiza o cálculo do checksum
   pacote.checksum = compute_checksum(pacote);
+  // realiza o envio do ACK para A
   tolayer3(1, pacote);
 }
 
@@ -188,7 +225,10 @@ B_timerinterrupt() {}
 
 /* the following rouytine will be called once (only) before any other */
 /* entity B routines are called. You can use it to do any initialization */
-B_init() { seq_B = 1; }
+B_init() { 
+  // Inicia o número de sequência com o mesmo número para A
+  seq_B = 1; 
+}
 
 /*****************************************************************
 ***************** NETWORK EMULATION CODE STARTS BELOW ***********
